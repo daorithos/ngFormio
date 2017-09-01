@@ -1,5 +1,4 @@
 var _get = require('lodash/get');
-
 module.exports = [
   'Formio',
   'formioComponents',
@@ -131,8 +130,19 @@ module.exports = [
           // Calculate value when data changes.
           if (!$scope.builder && ($scope.component.calculateValue || _get($scope.component, 'validate.json'))) {
             $scope.$watch('data', function() {
-              FormioUtils.checkCalculated($scope.component, $scope.submission, $scope.data);
-
+              if($scope.component.type === 'currency') {
+                var dataTemp={};
+                for (var key in $scope.data) {
+                  if (typeof dataTemp[key] !== 'number') {
+                    dataTemp[key] = parseFloat($scope.data[key].replace(/,/g, ""));
+                  }
+                }
+                FormioUtils.checkCalculated($scope.component, $scope.submission,dataTemp);
+                $scope.data[$scope.component.key]=dataTemp[$scope.component.key];
+              }
+              else{
+                FormioUtils.checkCalculated($scope.component, $scope.submission, $scope.data);
+              }
               // Process jsonLogic stuff if present.
               if (_get($scope.component, 'validate.json')) {
                 var input;
@@ -195,7 +205,6 @@ module.exports = [
               $scope.component[key] = angular.copy(value);
             }
           });
-
           // Add a new field value.
           $scope.addFieldValue = function() {
             var defaultData = {};
@@ -204,6 +213,7 @@ module.exports = [
               $scope.data[$scope.component.key].push(defaultData[$scope.component.key]);
             });
           };
+
 
           // Remove a field value.
           $scope.removeFieldValue = function(index) {

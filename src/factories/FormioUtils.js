@@ -15,9 +15,6 @@ module.exports = function() {
 
       (function next(err, previous) {
         if (err) {
-          if (typeof err === 'string') {
-            err = {alerts: {type: 'danger', message: '{"data": "' + err + '"}'}};
-          }
           err.item = previous;
           return done ? done(err) : null;
         }
@@ -146,7 +143,7 @@ module.exports = function() {
         }
 
         // If there is a default value and it is not an array, wrap the value.
-        if (component.multiple && component.defaultValue && typeof component.defaultValue === 'string') {
+        if (component.multiple && typeof component.defaultValue === 'string') {
           value = component.defaultValue.split(',');
         }
         else {
@@ -270,10 +267,58 @@ module.exports = function() {
       }
       /* eslint-enable max-depth */
     },
-    parseFloat: formioUtils.parseFloat,
-    formatAsCurrency: formioUtils.formatAsCurrency,
-    checkCalculated: formioUtils.checkCalculated,
-    escapeRegExCharacters: formioUtils.escapeRegExCharacters,
+    checkCalculated: function(component, submission, data) {
+      // Process calculated value stuff if present.
+      if (component.calculateValue) {
+        if (typeof component.calculateValue === 'string') {
+            try {
+              data[component.key] = eval('(function(data) { var value = [];' + component.calculateValue.toString() + '; return value; })(data)');
+            }
+            catch (e) {
+              /* eslint-disable no-console */
+              console.warn('An error occurred calculating a value for ' + component.key, e);
+              /* eslint-enable no-console */
+            }
+            if(component.type==='currency') {
+              var value = data[component.key].toString();
+              var point = value.indexOf('.');
+              if (point >= 0) {
+                value = value.slice(0, point + 3);
+              }
+              var str = value.split('.');
+              if (str[0].length >= 3) {
+                str[0] = str[0].replace(/(\d)(?=(\d{3})+$)/g, '$1,');
+              }
+              if (str[1] === undefined) {
+                str[1] = '';
+              }
+              else {
+                str[1] = '.' + str[1];
+              }
+              var res = (str[0] + str[1]);
+              if (!(isNaN(data[component.key]))) {
+                data[component.key] = res;
+              }
+              else {
+                data[component.key] = '';
+              }
+            }
+          }
+        else {
+            try {
+              data[component.key] = formioUtils.jsonLogic.apply(component.calculateValue, {
+                data: submission ? submission.data : data,
+                row: data
+              });
+            }
+            catch (e) {
+              /* eslint-disable no-console */
+              console.warn('An error occurred calculating a value for ' + component.key, e);
+              /* eslint-enable no-console */
+            }
+          }
+      }
+    },
     checkVisible: function(component, row, data) {
       var visible = formioUtils.checkCondition(component, row, data);
       if (!visible) {
@@ -302,7 +347,6 @@ module.exports = function() {
     getComponent: formioUtils.getComponent,
     getValue: formioUtils.getValue,
     jsonLogic: formioUtils.jsonLogic,
-    hasCondition: formioUtils.hasCondition,
     hideFields: function(form, components) {
       this.eachComponent(form.components, function(component) {
         for (var i in components) {
@@ -327,7 +371,7 @@ module.exports = function() {
         return v.toString(16);
       });
     },
-    fieldWrap: function(input) {
+    fieldWrap: function(input,$scope) {
       var multiInput = input.replace('data[component.key]', 'data[component.key][$index]');
       var inputLabel = '<label ng-if="component.label && !component.hideLabel" for="{{ component.key }}" class="control-label" ng-class="{\'field-required\': isRequired(component)}">{{ component.label | formioTranslate:null:builder }}</label>';
       var requiredInline = '<span ng-if="(component.hideLabel === true || component.label === \'\' || !component.label) && isRequired(component)" class="glyphicon glyphicon-asterisk form-control-feedback field-required-inline" aria-hidden="true"></span>';
@@ -351,7 +395,7 @@ module.exports = function() {
           inputLabel +
           '<tr ng-repeat="value in data[component.key] track by $index">' +
             '<td>' +
-              '<div class="input-group">' +
+              '<div class="input-group" ng-class="{\'has-error\':formioForm[componentId].$invalid && !formioForm[componentId].$pristine}">' +
                 '<div class="input-group-addon" ng-if="!!component.prefix">{{ component.prefix }}</div>' +
                   multiInput +
                   requiredInline +
