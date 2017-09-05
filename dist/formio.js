@@ -14360,9 +14360,9 @@ return hooks;
 },{}],221:[function(_dereq_,module,exports){
 module.exports = function (obj) {
     if (!obj || typeof obj !== 'object') return obj;
-    
+
     var copy;
-    
+
     if (isArray(obj)) {
         var len = obj.length;
         copy = Array(len);
@@ -14373,7 +14373,7 @@ module.exports = function (obj) {
     else {
         var keys = objectKeys(obj);
         copy = {};
-        
+
         for (var i = 0, l = keys.length; i < l; i++) {
             var key = keys[i];
             copy[key] = obj[key];
@@ -15633,6 +15633,9 @@ module.exports = function(app) {
                   .then(function(submission) {
                     // Trigger the form submission.
                     $scope.$emit('formSubmission', submission);
+                    if($scope.formSubmission && (typeof $scope.formSubmission === 'function')){
+                      $scope.formSubmission(submission);
+                    }
                   })
                   .catch(function(error) {
                     $scope.showAlerts({
@@ -19198,7 +19201,11 @@ module.exports = function() {
       requireComponents: '=?',
       disableComponents: '=?',
       formioOptions: '=?',
-      options: '=?'
+      options: '=?',
+      formMethod: '=?',
+      formError: '=?',
+      formSubmit: '=?',
+      formSubmission: '=?',
     },
     controller: [
       '$scope',
@@ -19218,7 +19225,9 @@ module.exports = function() {
         $q
       ) {
         var iframeReady = $q.defer();
+        console.log('scope',$scope);
         $scope.options = $scope.options || {};
+        $scope.formMethod = $scope.formMethod || false;
         $scope._src = $scope.src || '';
         $scope.formioAlerts = [];
         $scope.iframeReady = false;
@@ -19394,12 +19403,16 @@ module.exports = function() {
           onSubmit(submission, message, form);
           // Trigger the form submission.
           $scope.$emit('formSubmission', submission);
+          if($scope.formSubmission && (typeof $scope.formSubmission === 'function')){
+            $scope.formSubmission(submission);
+          }
         };
 
         $scope.submitForm = function(submissionData, form) {
           // Allow custom action urls.
           if ($scope.action) {
-            var method = submissionData._id ? 'put' : 'post';
+            var method = $scope.formMethod ? $scope.formMethod : submissionData._id ? 'put' : 'post';
+            // var method = submissionData._id ? 'put' : 'post';
             var action = $scope.action;
             // Add the action Id if it is not already part of the url.
             if (method === 'put' && (action.indexOf(submissionData._id) === -1)) {
@@ -19431,6 +19444,9 @@ module.exports = function() {
           }
           else {
             $scope.$emit('formSubmission', submissionData);
+            if($scope.formSubmission && typeof $scope.formSubmission === 'function'){
+              $scope.formSubmission(submissionData);
+            }
           }
         };
 
@@ -19562,6 +19578,9 @@ module.exports = function() {
             });
 
             var submitEvent = $scope.$emit('formSubmit', submissionData);
+            if($scope.formSubmit && typeof $scope.formSubmit === 'function'){
+              $scope.formSubmit(submissionData);
+            }
             if (submitEvent.defaultPrevented) {
               // Listener wants to cancel the form submission
               form.submitting = false;
@@ -20520,6 +20539,9 @@ module.exports = function() {
             submissionData = angular.copy(submissionData);
 
             var submitEvent = $scope.$emit('formSubmit', submissionData);
+            if($scope.formSubmit && typeof $scope.formSubmit === 'function'){
+              $scope.formSubmit(submissionData);
+            }
             if (submitEvent.defaultPrevented) {
               // Listener wants to cancel the form submission
               return;
@@ -20534,6 +20556,9 @@ module.exports = function() {
                 message: 'Submission Complete!'
               });
               $scope.$emit('formSubmission', submission);
+              if($scope.formSubmission && (typeof $scope.formSubmission === 'function')){
+                $scope.formSubmission(submission);
+              }
             };
 
             // Save to specified action.
@@ -20847,6 +20872,9 @@ module.exports = [
             });
           }
           $scope.$emit('formError', error);
+          if($scope.formError && typeof $scope.formError === 'function'){
+            $scope.formError(error);
+          }
         };
       },
       register: function($scope, $element, options) {
